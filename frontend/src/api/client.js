@@ -7,7 +7,7 @@ export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: localStorage.getItem('te_api_url') || import.meta.env.VITE_API_URL || '/api',
   timeout: 30000,
 });
 
@@ -27,8 +27,9 @@ api.interceptors.response.use(
     // but never bounce them out of the login request itself.
     if (status === 401 && !url.includes('/auth/login')) {
       clearToken();
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.replace('/login?expired=1');
+      const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+      if (!window.location.pathname.includes('/login')) {
+        window.location.replace(`${base}/login?expired=1`);
       }
     }
 
