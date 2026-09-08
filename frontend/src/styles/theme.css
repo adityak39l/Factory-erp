@@ -1,0 +1,142 @@
+/* ==========================================================================
+   Trading Engineers — design tokens
+   Brand: navy #05054A, orange #E28431 (taken from the company logo)
+   ========================================================================== */
+
+:root {
+  /* Brand */
+  --navy-900: #05054a;
+  --navy-800: #0a0a5e;
+  --navy-700: #131372;
+  --navy-600: #1e1e8c;
+  --navy-050: #eef0f9;
+
+  --orange-600: #c96f22;
+  --orange-500: #e28431;
+  --orange-400: #ec9c56;
+  --orange-100: #fdf0e2;
+  --orange-050: #fef7f0;
+
+  /* Neutrals */
+  --slate-900: #0f172a;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-050: #f8fafc;
+  --white: #ffffff;
+
+  /* Status */
+  --green-600: #15803d;
+  --green-500: #16a34a;
+  --green-100: #dcfce7;
+  --red-600: #dc2626;
+  --red-500: #ef4444;
+  --red-100: #fee2e2;
+  --amber-600: #b45309;
+  --amber-500: #f59e0b;
+  --amber-100: #fef3c7;
+  --blue-600: #1d4ed8;
+  --blue-500: #3b82f6;
+  --blue-100: #dbeafe;
+  --violet-500: #7c3aed;
+  --violet-100: #ede9fe;
+
+  /* Surfaces */
+  --app-bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --border: #e5e9f2;
+  --border-strong: #d3dae8;
+
+  /* Typography */
+  --font-sans: 'Segoe UI', system-ui, -apple-system, 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 32px rgba(5, 5, 74, 0.14);
+
+  /* Geometry */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --sidebar-width: 258px;
+  --header-height: 62px;
+
+  --transition: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--slate-800);
+  background: var(--app-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  margin: 0;
+  color: var(--navy-900);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: 22px; }
+h2 { font-size: 18px; }
+h3 { font-size: 15px; }
+
+p { margin: 0; }
+
+a {
+  color: var(--navy-700);
+  text-decoration: none;
+}
+
+a:hover { color: var(--orange-500); }
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--slate-300);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--slate-400); background-clip: content-box; }
+
+:focus-visible {
+  outline: 2px solid var(--orange-500);
+  outline-offset: 2px;
+}

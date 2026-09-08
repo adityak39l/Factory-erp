@@ -1,0 +1,19 @@
+{
+  "name": "trading-engineers-dpr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trading Engineers — Factory Employee Management & DPR System (Phase 1)",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "seed": "npm --prefix backend run seed",
+    "seed:demo": "npm --prefix backend run seed -- --demo",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test": "npm --prefix backend test",
+    "build": "npm --prefix frontend run build"
+  },
+  "workspaces": [],
+  "engines": {
+    "node": ">=18"
+  }
+}

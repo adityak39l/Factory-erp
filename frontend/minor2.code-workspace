@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "../../../../minor2"
+		},
+		{
+			"path": "../../../../iccc intern/MY WORK/jnn_portal"
+		},
+		{
+			"path": "../../../../iccc intern/MY WORK/HNN"
+		},
+		{
+			"path": "../../../../sem_7"
+		},
+		{
+			"path": "../../../../python"
+		},
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "minor2"
+	}
+}
