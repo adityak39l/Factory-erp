@@ -37,11 +37,13 @@ export default function Login() {
     }
   };
 
+  const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
+
   return (
     <div className="auth-screen">
       <div className="auth-hero">
         <div className="auth-hero__logo">
-          <img src="/logo.png" alt="Trading Engineers" />
+          <img src={logoUrl} alt="Trading Engineers" />
         </div>
         <h1>Factory Employee &amp; DPR Management</h1>
         <p>
@@ -61,7 +63,7 @@ export default function Login() {
       <div className="auth-panel">
         <div className="auth-card">
           <div className="auth-card__mobile-logo">
-            <img src="/logo.png" alt="Trading Engineers" />
+            <img src={logoUrl} alt="Trading Engineers" />
           </div>
 
           <Card>

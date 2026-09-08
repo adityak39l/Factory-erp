@@ -168,12 +168,14 @@ export default function Layout({ children }) {
     navigate(path);
   };
 
+  const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
+
   return (
     <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? 'sidebar--open' : ''}`}>
         <div className="sidebar__brand">
           <div className="sidebar__logo">
-            <img src="/logo.png" alt="Trading Engineers" />
+            <img src={logoUrl} alt="Trading Engineers" />
           </div>
           <div className="sidebar__brand-text">
             <span className="sidebar__brand-name">Trading Engineers</span>
