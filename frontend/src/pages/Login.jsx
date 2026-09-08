@@ -19,6 +19,8 @@ export default function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [apiUrl, setApiUrl] = useState(localStorage.getItem('te_api_url') || '');
 
   const expired = new URLSearchParams(location.search).get('expired');
 
@@ -62,13 +64,17 @@ export default function Login() {
 
       <div className="auth-panel">
         <div className="auth-card">
-          <div className="auth-card__mobile-logo">
-            <img src={logoUrl} alt="Trading Engineers" />
-          </div>
-
           <Card>
-            <h2 style={{ fontSize: 20 }}>Sign in</h2>
-            <p className="text-muted text-small mt-0" style={{ marginBottom: 20 }}>
+            <div style={{ textAlign: 'center', marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+              <img
+                src={logoUrl}
+                alt="Trading Engineers"
+                style={{ height: 42, maxWidth: '100%', objectFit: 'contain' }}
+              />
+            </div>
+
+            <h2 style={{ fontSize: 20, textAlign: 'center' }}>Sign in</h2>
+            <p className="text-muted text-small mt-0" style={{ marginBottom: 20, textAlign: 'center' }}>
               Use the login ID given to you by the administrator.
             </p>
 
@@ -81,6 +87,11 @@ export default function Login() {
             {error ? (
               <div className="mb-2">
                 <Alert tone="danger">{error}</Alert>
+                {window.location.hostname.includes('github.io') ? (
+                  <div style={{ fontSize: 12, color: 'var(--slate-500)', marginTop: 8, lineHeight: 1.45, background: 'var(--slate-050)', padding: 8, borderRadius: 6, border: '1px solid var(--border)' }}>
+                    ℹ️ <strong>GitHub Pages Note:</strong> GitHub Pages par sirf Frontend chalta hai (Node/MongoDB nahi). Login karne ke liye backend chalana zaroori hai. Local Wi-Fi par <code>http://10.50.241.47:5173</code> kholein ya niche Backend URL configure karein.
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -122,6 +133,56 @@ export default function Login() {
                 Administrator forgot password?
               </Link>
             </div>
+
+            <div style={{ marginTop: 14, textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              <button
+                type="button"
+                style={{ fontSize: 11, color: 'var(--slate-500)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => setShowServerConfig(!showServerConfig)}
+              >
+                {showServerConfig ? '▲ Hide Server Settings' : '⚙️ Backend Server Settings'}
+              </button>
+            </div>
+
+            {showServerConfig ? (
+              <div style={{ marginTop: 10, padding: 10, background: 'var(--slate-050)', borderRadius: 8, border: '1px solid var(--border)', textAlign: 'left' }}>
+                <Field label="Backend API URL" hint="Live backend URL (e.g. https://your-app.onrender.com/api)">
+                  <Input
+                    value={apiUrl}
+                    onChange={(e) => setApiUrl(e.target.value)}
+                    placeholder="https://your-api.com/api"
+                    style={{ fontSize: 12 }}
+                  />
+                </Field>
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => {
+                      if (apiUrl.trim()) {
+                        localStorage.setItem('te_api_url', apiUrl.trim());
+                      } else {
+                        localStorage.removeItem('te_api_url');
+                      }
+                      window.location.reload();
+                    }}
+                  >
+                    Save &amp; Reload
+                  </Button>
+                  {localStorage.getItem('te_api_url') ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        localStorage.removeItem('te_api_url');
+                        window.location.reload();
+                      }}
+                    >
+                      Reset
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </Card>
 
           <p className="text-center text-small text-muted mt-3">
