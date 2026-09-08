@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true,
     port: 5173,
     // The frontend calls /api/* and Vite forwards it to the backend in development,
     // so there is no CORS setup to worry about while working locally.
