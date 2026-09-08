@@ -46,6 +46,13 @@ const employeeBase = {
   joiningDate: dateString,
   joiningYear: z.coerce.number().int().min(2000).max(2099).optional(),
   joiningMonth: z.coerce.number().int().min(1).max(12).optional(),
+  salaryType: z.enum(['Monthly', 'Daily']).optional().default('Monthly'),
+  baseRate: z.coerce.number().min(0).optional().default(0),
+  standardDailyHours: z.coerce.number().min(1).max(24).optional().default(8),
+  otMultiplier: z.enum(['1x', '1.5x', '2x']).optional().default('1x'),
+  paymentMode: z.enum(['Bank', 'Cash']).optional().default('Cash'),
+  paidLeavesPerMonth: z.coerce.number().min(0).optional().default(0),
+  salaryConfig: z.any().optional(),
 };
 
 const createSchema = z.object(employeeBase);
@@ -55,6 +62,18 @@ const statusSchema = z.object({
   reason: z.string().trim().max(200).optional().default(''),
   effectiveDate: dateString.optional(),
 });
+const updateSalarySchema = z.object({
+  newBaseRate: z.coerce.number().min(0),
+  effectiveFrom: dateString.optional(),
+  reason: z.string().trim().max(200).optional().default(''),
+  salaryType: z.enum(['Monthly', 'Daily']).optional(),
+  otMultiplier: z.enum(['1x', '1.5x', '2x']).optional(),
+  paymentMode: z.enum(['Bank', 'Cash']).optional(),
+  paidLeavesPerMonth: z.coerce.number().min(0).optional(),
+  standardDailyHours: z.coerce.number().min(1).max(24).optional(),
+});
+
+const advancesController = require('../advances/advances.controller');
 
 // --- Import (admin / permitted operators) ---
 router.get('/import/template', requirePermission('canRegisterEmployee'), importController.downloadTemplate);
@@ -75,6 +94,14 @@ router.get('/search', controller.searchEmployees);
 router.get('/', controller.listEmployees);
 router.get('/:id', controller.getEmployee);
 router.get('/:id/attendance', controller.getEmployeeAttendance);
+
+// --- Salary & Financial Extensions (Phase 2) ---
+router.get('/:id/salary-preview', requirePermission(['canViewSalary', 'canManagePayroll']), controller.getSalaryPreview);
+router.get('/:id/financial-calendar', requirePermission(['canViewSalary', 'canManagePayroll']), controller.getFinancialCalendar);
+router.get('/:id/shorttime-log', requirePermission(['canViewSalary', 'canManagePayroll']), controller.getShorttimeLog);
+router.get('/:id/salary-history', requirePermission(['canViewSalary', 'canManagePayroll']), controller.getSalaryHistory);
+router.put('/:id/salary', requirePermission('canManagePayroll'), validate(updateSalarySchema), controller.updateSalary);
+router.get('/:id/advances', requirePermission(['canViewSalary', 'canManageAdvances']), advancesController.getEmployeeAdvances);
 
 router.post('/', requirePermission('canRegisterEmployee'), validate(createSchema), controller.createEmployee);
 router.put(

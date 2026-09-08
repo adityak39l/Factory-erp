@@ -20,6 +20,8 @@ const reportRoutes = require('./modules/reports/reports.routes');
 const operatorRoutes = require('./modules/operators/operators.routes');
 const auditRoutes = require('./modules/audit/audit.routes');
 const systemRoutes = require('./modules/system/system.routes');
+const advanceRoutes = require('./modules/advances/advances.routes');
+const payrollRoutes = require('./modules/payroll/payroll.routes');
 
 function createApp() {
   const app = express();
@@ -47,9 +49,7 @@ function createApp() {
     app.use(morgan(env.isProduction ? 'combined' : 'dev'));
   }
 
-  // ---- API modules (Phase 1) -------------------------------------------
-  // Future phases (Production, Material) mount here as their own modules
-  // without touching anything above or below this block.
+  // ---- API modules (Phase 1 & Phase 2) ---------------------------------
   app.use('/api/auth', authRoutes);
   app.use('/api/employees', employeeRoutes);
   app.use('/api/masters', masterRoutes);
@@ -59,6 +59,8 @@ function createApp() {
   app.use('/api/operators', operatorRoutes);
   app.use('/api/audit', auditRoutes);
   app.use('/api/system', systemRoutes);
+  app.use('/api/advances', advanceRoutes);
+  app.use('/api/payroll', payrollRoutes);
 
   // ---- API documentation ----------------------------------------------
   app.use(

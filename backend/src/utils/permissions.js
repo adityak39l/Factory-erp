@@ -63,6 +63,24 @@ const PERMISSIONS = [
     group: 'Reporting',
     description: 'Access the reports, analytics and export screens.',
   },
+  {
+    key: 'canManagePayroll',
+    label: 'Calculate, adjust, and approve monthly payroll',
+    group: 'Payroll',
+    description: 'Calculate monthly payroll, manage adjustments, and approve disbursements.',
+  },
+  {
+    key: 'canManageAdvances',
+    label: 'Issue and manage salary advances',
+    group: 'Payroll',
+    description: 'Issue employee salary advances and manage installment plans.',
+  },
+  {
+    key: 'canViewSalary',
+    label: 'View sensitive salary figures and payslips',
+    group: 'Payroll',
+    description: 'View unmasked salary rates, payslips, and compensation summaries.',
+  },
 ];
 
 const PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);

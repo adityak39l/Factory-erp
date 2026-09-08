@@ -107,6 +107,38 @@ const employeeSchema = new mongoose.Schema(
     inactiveSince: { type: Date, default: null },
     inactiveReason: { type: String, trim: true, default: '', maxlength: 200 },
 
+    // --- Compensation & Salary Structure (Phase 2) ---
+    salaryConfig: {
+      salaryType: {
+        type: String,
+        enum: ['Monthly', 'Daily'],
+        default: 'Monthly',
+      },
+      baseRate: { type: Number, default: 0, min: 0 },
+      standardDailyHours: { type: Number, default: 8, min: 1, max: 24 },
+      otMultiplier: {
+        type: String,
+        enum: ['1x', '1.5x', '2x'],
+        default: '1x',
+      },
+      paymentMode: {
+        type: String,
+        enum: ['Bank', 'Cash', 'Bank Transfer', 'Cheque'],
+        default: 'Bank',
+      },
+      paidLeavesPerMonth: { type: Number, default: 0, min: 0 },
+    },
+    salaryHistory: [
+      {
+        effectiveFrom: { type: Date, required: true },
+        previousRate: { type: Number, default: 0 },
+        newRate: { type: Number, required: true },
+        reason: { type: String, trim: true, default: '' },
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        changedAt: { type: Date, default: Date.now },
+      },
+    ],
+
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
@@ -131,7 +163,7 @@ employeeSchema.pre('save', function encryptSensitive(next) {
  * Serialise for API responses.
  * @param {boolean} canViewSensitive  true only when the caller holds the permission
  */
-employeeSchema.methods.toClientJSON = function toClientJSON(canViewSensitive = false) {
+employeeSchema.methods.toClientJSON = function toClientJSON(canViewSensitive = false, canViewSalary = true) {
   const doc = this.toObject({ virtuals: true });
   const aadharPlain = this.aadharNo ? decrypt(this.aadharNo) : '';
   const accountPlain = this.bankDetails?.accountNo ? decrypt(this.bankDetails.accountNo) : '';
@@ -157,6 +189,24 @@ employeeSchema.methods.toClientJSON = function toClientJSON(canViewSensitive = f
     status: doc.status,
     inactiveSince: doc.inactiveSince,
     inactiveReason: doc.inactiveReason,
+    salaryConfig: doc.salaryConfig
+      ? {
+          salaryType: doc.salaryConfig.salaryType || 'Monthly',
+          baseRate: canViewSalary ? (doc.salaryConfig.baseRate || 0) : null,
+          standardDailyHours: doc.salaryConfig.standardDailyHours || 8,
+          otMultiplier: doc.salaryConfig.otMultiplier || '1x',
+          paymentMode: doc.salaryConfig.paymentMode || 'Cash',
+          paidLeavesPerMonth: doc.salaryConfig.paidLeavesPerMonth || 0,
+        }
+      : {
+          salaryType: 'Monthly',
+          baseRate: canViewSalary ? 0 : null,
+          standardDailyHours: 8,
+          otMultiplier: '1x',
+          paymentMode: 'Cash',
+          paidLeavesPerMonth: 0,
+        },
+    salaryHistory: canViewSalary ? doc.salaryHistory || [] : [],
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     sensitive: {

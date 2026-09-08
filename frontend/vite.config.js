@@ -9,7 +9,7 @@ export default defineConfig({
     // so there is no CORS setup to worry about while working locally.
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },

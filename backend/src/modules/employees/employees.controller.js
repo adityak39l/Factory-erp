@@ -4,18 +4,21 @@ const Employee = require('../../models/Employee');
 const Department = require('../../models/Department');
 const Team = require('../../models/Team');
 const DprEntry = require('../../models/DprEntry');
+const SalaryAdvance = require('../../models/SalaryAdvance');
+const MonthlyPayroll = require('../../models/MonthlyPayroll');
 const { ApiError, asyncHandler } = require('../../utils/ApiError');
 const { recordAudit } = require('../../services/auditService');
 const { generateEmployeeId } = require('../../services/employeeIdService');
 const { can } = require('../../middleware/permissions');
 const { parseDateOnly, formatDateOnly, monthRange } = require('../../utils/dates');
 const { buildEmployeeAttendance } = require('../../services/attendanceService');
+const { calculateEmployeePreview } = require('../../services/payrollService');
 
 const SENSITIVE_SELECT = '+aadharNo +bankDetails.accountNo';
 
 /** Shared shape for list responses. */
-function toListItem(employee, canViewSensitive) {
-  const json = employee.toClientJSON(canViewSensitive);
+function toListItem(employee, canViewSensitive, canViewSalary = true) {
+  const json = employee.toClientJSON(canViewSensitive, canViewSalary);
   return json;
 }
 
@@ -78,10 +81,11 @@ const listEmployees = asyncHandler(async (req, res) => {
   ]);
 
   const canView = can(req, 'canViewSensitive');
+  const canViewSal = can(req, 'canViewSalary') || can(req, 'canManagePayroll');
 
   res.json({
     success: true,
-    employees: employees.map((e) => toListItem(e, canView)),
+    employees: employees.map((e) => toListItem(e, canView, canViewSal)),
     pagination: {
       page: pageNum,
       limit: perPage,
@@ -131,7 +135,11 @@ const getEmployee = asyncHandler(async (req, res) => {
     .populate('team', 'name');
   if (!employee) throw ApiError.notFound('Employee not found');
 
-  res.json({ success: true, employee: employee.toClientJSON(can(req, 'canViewSensitive')) });
+  const canViewSal = can(req, 'canViewSalary') || can(req, 'canManagePayroll');
+  res.json({
+    success: true,
+    employee: employee.toClientJSON(can(req, 'canViewSensitive'), canViewSal),
+  });
 });
 
 /**
@@ -224,6 +232,27 @@ const createEmployee = asyncHandler(async (req, res) => {
     joiningDate,
     joiningYear: year,
     joiningMonth: month,
+    salaryConfig: {
+      salaryType: body.salaryType || body.salaryConfig?.salaryType || 'Monthly',
+      baseRate: Number(body.baseRate ?? body.salaryConfig?.baseRate ?? 0),
+      standardDailyHours: Number(body.standardDailyHours ?? body.salaryConfig?.standardDailyHours ?? 8),
+      otMultiplier: body.otMultiplier || body.salaryConfig?.otMultiplier || '1x',
+      paymentMode: body.paymentMode || body.salaryConfig?.paymentMode || 'Cash',
+      paidLeavesPerMonth: Number(body.paidLeavesPerMonth ?? body.salaryConfig?.paidLeavesPerMonth ?? 0),
+    },
+    salaryHistory:
+      Number(body.baseRate ?? body.salaryConfig?.baseRate ?? 0) > 0
+        ? [
+            {
+              effectiveFrom: joiningDate,
+              previousRate: 0,
+              newRate: Number(body.baseRate ?? body.salaryConfig?.baseRate ?? 0),
+              reason: 'Initial joining rate',
+              changedBy: req.user._id,
+              changedAt: new Date(),
+            },
+          ]
+        : [],
     status: 'Active',
     createdBy: req.user._id,
   });
@@ -241,6 +270,7 @@ const createEmployee = asyncHandler(async (req, res) => {
       name: employee.name,
       department: department.name,
       employeeType: employee.employeeType,
+      baseRate: employee.salaryConfig?.baseRate || 0,
     },
   });
 
@@ -249,7 +279,8 @@ const createEmployee = asyncHandler(async (req, res) => {
     .populate('department', 'name isHelperPool hasTeams')
     .populate('team', 'name');
 
-  res.status(201).json({ success: true, employee: saved.toClientJSON(can(req, 'canViewSensitive')) });
+  const canViewSal = can(req, 'canViewSalary') || can(req, 'canManagePayroll');
+  res.status(201).json({ success: true, employee: saved.toClientJSON(can(req, 'canViewSensitive'), canViewSal) });
 });
 
 /** PUT /api/employees/:id */
@@ -325,6 +356,37 @@ const updateEmployee = asyncHandler(async (req, res) => {
   if (body.accountNo !== undefined) employee.bankDetails.accountNo = body.accountNo;
   if (body.ifsc !== undefined) employee.bankDetails.ifsc = body.ifsc;
 
+  // Compensation / Salary Config updates
+  if (body.salaryConfig || body.baseRate !== undefined || body.salaryType !== undefined) {
+    const sc = employee.salaryConfig || {};
+    const newRate = body.baseRate !== undefined
+      ? Number(body.baseRate)
+      : (body.salaryConfig?.baseRate !== undefined ? Number(body.salaryConfig.baseRate) : sc.baseRate);
+
+    if (newRate !== undefined && newRate !== sc.baseRate && can(req, 'canManagePayroll')) {
+      employee.salaryHistory.push({
+        effectiveFrom: parseDateOnly(body.effectiveFrom) || new Date(),
+        previousRate: sc.baseRate || 0,
+        newRate,
+        reason: String(body.rateChangeReason || body.salaryReason || 'Rate updated').trim(),
+        changedBy: req.user._id,
+        changedAt: new Date(),
+      });
+      sc.baseRate = newRate;
+    }
+
+    if (body.salaryType || body.salaryConfig?.salaryType) sc.salaryType = body.salaryType || body.salaryConfig?.salaryType;
+    if (body.otMultiplier || body.salaryConfig?.otMultiplier) sc.otMultiplier = body.otMultiplier || body.salaryConfig?.otMultiplier;
+    if (body.paymentMode || body.salaryConfig?.paymentMode) sc.paymentMode = body.paymentMode || body.salaryConfig?.paymentMode;
+    if (body.standardDailyHours !== undefined || body.salaryConfig?.standardDailyHours !== undefined) {
+      sc.standardDailyHours = Number(body.standardDailyHours ?? body.salaryConfig?.standardDailyHours);
+    }
+    if (body.paidLeavesPerMonth !== undefined || body.salaryConfig?.paidLeavesPerMonth !== undefined) {
+      sc.paidLeavesPerMonth = Number(body.paidLeavesPerMonth ?? body.salaryConfig?.paidLeavesPerMonth);
+    }
+    employee.salaryConfig = sc;
+  }
+
   employee.updatedBy = req.user._id;
   await employee.save();
 
@@ -350,7 +412,8 @@ const updateEmployee = asyncHandler(async (req, res) => {
     .populate('department', 'name isHelperPool hasTeams')
     .populate('team', 'name');
 
-  res.json({ success: true, employee: saved.toClientJSON(can(req, 'canViewSensitive')) });
+  const canViewSal = can(req, 'canViewSalary') || can(req, 'canManagePayroll');
+  res.json({ success: true, employee: saved.toClientJSON(can(req, 'canViewSensitive'), canViewSal) });
 });
 
 /**
@@ -391,7 +454,230 @@ const setEmployeeStatus = asyncHandler(async (req, res) => {
         : 'Reactivated',
   });
 
-  res.json({ success: true, employee: employee.toClientJSON(can(req, 'canViewSensitive')) });
+  const canViewSal = can(req, 'canViewSalary') || can(req, 'canManagePayroll');
+  res.json({ success: true, employee: employee.toClientJSON(can(req, 'canViewSensitive'), canViewSal) });
+});
+
+/**
+ * GET /api/employees/:id/salary-preview?month=&year=&workingDaysInMonth=
+ */
+const getSalaryPreview = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const year = Number(req.query.year) || now.getUTCFullYear();
+  const month = Number(req.query.month) || now.getUTCMonth() + 1;
+  const workingDays = Number(req.query.workingDaysInMonth) || 26;
+
+  const preview = await calculateEmployeePreview(req.params.id, month, year, workingDays);
+  res.json({ success: true, preview });
+});
+
+/**
+ * GET /api/employees/:id/financial-calendar?month=&year=
+ */
+const getFinancialCalendar = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id);
+  if (!employee) throw ApiError.notFound('Employee not found');
+
+  const now = new Date();
+  const year = Number(req.query.year) || now.getUTCFullYear();
+  const month = Number(req.query.month) || now.getUTCMonth() + 1;
+  const { start, end } = monthRange(year, month);
+
+  const [advances, entries, payroll] = await Promise.all([
+    SalaryAdvance.find({
+      employee: employee._id,
+      $or: [
+        { issuedDate: { $gte: start, $lte: end } },
+        { 'repayments.deductedAt': { $gte: start, $lte: end } },
+      ],
+    }).lean(),
+    DprEntry.find({
+      employee: employee._id,
+      date: { $gte: start, $lte: end },
+    }).lean(),
+    MonthlyPayroll.findOne({
+      month,
+      year,
+      status: 'Paid',
+    }).lean(),
+  ]);
+
+  const events = [];
+
+  // 1. Advances Issued (RED)
+  advances.forEach((adv) => {
+    if (adv.issuedDate >= start && adv.issuedDate <= end) {
+      events.push({
+        date: formatDateOnly(adv.issuedDate),
+        type: 'ADVANCE_ISSUED',
+        amount: adv.totalAmount,
+        label: `Advance ₹${adv.totalAmount.toLocaleString('en-IN')} issued (${adv.purpose || 'Personal'})`,
+      });
+    }
+
+    // 2. Advance EMI Deducted (YELLOW)
+    (adv.repayments || []).forEach((rep) => {
+      if (rep.deductedAt && rep.deductedAt >= start && rep.deductedAt <= end) {
+        events.push({
+          date: formatDateOnly(rep.deductedAt),
+          type: 'ADVANCE_DEDUCTED',
+          amount: rep.amountDeducted,
+          label: `Advance EMI ₹${rep.amountDeducted.toLocaleString('en-IN')} deducted (Remaining: ₹${adv.remainingBalance})`,
+        });
+      }
+    });
+  });
+
+  // 3. Short-Time Days (PURPLE)
+  entries.forEach((entry) => {
+    const entryDate = formatDateOnly(entry.date);
+    if (entry.shortTime && entry.shortTime > 0) {
+      events.push({
+        date: entryDate,
+        type: 'SHORT_TIME',
+        hours: entry.shortTime,
+        label: `Short-time: ${entry.shortTime}h early departure recorded in DPR`,
+      });
+    }
+  });
+
+  // 4. Salary Paid (GREEN)
+  if (payroll) {
+    const rec = (payroll.records || []).find((r) => String(r.employee) === String(employee._id));
+    if (rec && rec.paymentDate) {
+      events.push({
+        date: formatDateOnly(rec.paymentDate),
+        type: 'SALARY_PAID',
+        amount: rec.netPayable,
+        label: `Salary of ₹${rec.netPayable.toLocaleString('en-IN')} paid on time`,
+      });
+    }
+  }
+
+  res.json({ success: true, events });
+});
+
+/**
+ * GET /api/employees/:id/shorttime-log?month=&year=&workingDaysInMonth=
+ */
+const getShorttimeLog = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id);
+  if (!employee) throw ApiError.notFound('Employee not found');
+
+  const now = new Date();
+  const year = Number(req.query.year) || now.getUTCFullYear();
+  const month = Number(req.query.month) || now.getUTCMonth() + 1;
+  const { start, end } = monthRange(year, month);
+
+  const entries = await DprEntry.find({
+    employee: employee._id,
+    date: { $gte: start, $lte: end },
+    shortTime: { $gt: 0 },
+  }).sort({ date: 1 }).lean();
+
+  const workingDays = Number(req.query.workingDaysInMonth) || 26;
+  const baseRate = employee.salaryConfig?.baseRate || 0;
+  const standardDailyHours = employee.salaryConfig?.standardDailyHours || 8;
+  const salaryType = employee.salaryConfig?.salaryType || 'Monthly';
+
+  const dailyRate = salaryType === 'Monthly'
+    ? (workingDays > 0 ? baseRate / workingDays : 0)
+    : baseRate;
+  const hourlyRate = standardDailyHours > 0 ? dailyRate / standardDailyHours : 0;
+
+  let totalShortTimeHours = 0;
+  let totalShortTimeDeduction = 0;
+
+  const days = entries.map((e) => {
+    const hours = e.shortTime || 0;
+    const deductionAmount = Math.round(hours * hourlyRate * 100) / 100;
+    totalShortTimeHours += hours;
+    totalShortTimeDeduction += deductionAmount;
+    return {
+      date: formatDateOnly(e.date),
+      shortTimeHours: hours,
+      hourlyRate: Math.round(hourlyRate * 100) / 100,
+      deductionAmount,
+      inTime: e.inTime || '',
+      outTime: e.outTime || '',
+    };
+  });
+
+  res.json({
+    success: true,
+    hourlyRate: Math.round(hourlyRate * 100) / 100,
+    totalShortTimeHours: Math.round(totalShortTimeHours * 100) / 100,
+    totalShortTimeDeduction: Math.round(totalShortTimeDeduction * 100) / 100,
+    days,
+  });
+});
+
+/**
+ * GET /api/employees/:id/salary-history
+ */
+const getSalaryHistory = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id)
+    .populate('salaryHistory.changedBy', 'name username')
+    .lean();
+  if (!employee) throw ApiError.notFound('Employee not found');
+
+  res.json({
+    success: true,
+    salaryConfig: employee.salaryConfig || {},
+    salaryHistory: employee.salaryHistory || [],
+  });
+});
+
+/**
+ * PUT /api/employees/:id/salary
+ */
+const updateSalary = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id);
+  if (!employee) throw ApiError.notFound('Employee not found');
+
+  const { newBaseRate, effectiveFrom, reason = '', salaryType, otMultiplier, paymentMode, paidLeavesPerMonth, standardDailyHours } = req.body;
+  const rate = Number(newBaseRate);
+  if (isNaN(rate) || rate < 0) throw ApiError.badRequest('Valid base rate is required');
+
+  const effDate = parseDateOnly(effectiveFrom) || new Date();
+  const prevRate = employee.salaryConfig?.baseRate || 0;
+
+  employee.salaryHistory.push({
+    effectiveFrom: effDate,
+    previousRate: prevRate,
+    newRate: rate,
+    reason: String(reason || 'Salary revision').trim(),
+    changedBy: req.user._id,
+    changedAt: new Date(),
+  });
+
+  if (!employee.salaryConfig) employee.salaryConfig = {};
+  employee.salaryConfig.baseRate = rate;
+  if (salaryType) employee.salaryConfig.salaryType = salaryType;
+  if (otMultiplier) employee.salaryConfig.otMultiplier = otMultiplier;
+  if (paymentMode) employee.salaryConfig.paymentMode = paymentMode;
+  if (paidLeavesPerMonth !== undefined) employee.salaryConfig.paidLeavesPerMonth = Number(paidLeavesPerMonth);
+  if (standardDailyHours !== undefined) employee.salaryConfig.standardDailyHours = Number(standardDailyHours);
+
+  employee.updatedBy = req.user._id;
+  await employee.save();
+
+  await recordAudit({
+    req,
+    action: 'SALARY_REVISED',
+    entity: 'Employee',
+    entityId: employee._id,
+    entityLabel: `${employee.employeeId} — ${employee.name}`,
+    before: { baseRate: prevRate },
+    after: { baseRate: rate, effectiveFrom: formatDateOnly(effDate) },
+    note: `Salary updated from ₹${prevRate} to ₹${rate}. Reason: ${reason}`,
+  });
+
+  res.json({
+    success: true,
+    salaryConfig: employee.salaryConfig,
+    salaryHistory: employee.salaryHistory,
+  });
 });
 
 module.exports = {
@@ -403,5 +689,10 @@ module.exports = {
   updateEmployee,
   setEmployeeStatus,
   resolveDepartmentAndTeam,
+  getSalaryPreview,
+  getFinancialCalendar,
+  getShorttimeLog,
+  getSalaryHistory,
+  updateSalary,
   SENSITIVE_SELECT,
 };

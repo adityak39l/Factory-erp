@@ -39,6 +39,12 @@ const EMPTY_FORM = {
   joiningDate: todayIso(),
   joiningYear: new Date().getFullYear(),
   joiningMonth: new Date().getMonth() + 1,
+  salaryType: 'Monthly',
+  baseRate: '',
+  standardDailyHours: 8,
+  otMultiplier: '1x',
+  paymentMode: 'Cash',
+  paidLeavesPerMonth: 0,
   aadharNo: '',
   bankName: '',
   accountNo: '',
@@ -108,6 +114,12 @@ export default function Employees() {
       department: employee.department?._id || employee.department || '',
       team: employee.team?._id || employee.team || '',
       joiningDate: (employee.joiningDate || '').slice(0, 10),
+      salaryType: employee.salaryConfig?.salaryType || 'Monthly',
+      baseRate: employee.salaryConfig?.baseRate !== undefined && employee.salaryConfig?.baseRate !== null ? employee.salaryConfig.baseRate : '',
+      standardDailyHours: employee.salaryConfig?.standardDailyHours || 8,
+      otMultiplier: employee.salaryConfig?.otMultiplier || '1x',
+      paymentMode: employee.salaryConfig?.paymentMode || 'Cash',
+      paidLeavesPerMonth: employee.salaryConfig?.paidLeavesPerMonth || 0,
       aadharNo: employee.sensitive?.canView ? employee.sensitive.aadharNo : '',
       bankName: employee.sensitive?.bank?.bankName || '',
       accountNo: employee.sensitive?.canView ? employee.sensitive.bank.accountNo : '',
@@ -122,6 +134,9 @@ export default function Employees() {
     try {
       const payload = {
         ...form,
+        baseRate: form.baseRate !== '' ? Number(form.baseRate) : 0,
+        standardDailyHours: Number(form.standardDailyHours) || 8,
+        paidLeavesPerMonth: Number(form.paidLeavesPerMonth) || 0,
         team: form.team || null,
         joiningYear: Number(form.joiningDate.slice(0, 4)),
         joiningMonth: Number(form.joiningDate.slice(5, 7)),
@@ -263,6 +278,7 @@ export default function Employees() {
                     <th>Shift</th>
                     <th>Mobile</th>
                     <th>Joined</th>
+                    <th>Salary Structure</th>
                     <th>Status</th>
                     <th />
                   </tr>
@@ -302,6 +318,25 @@ export default function Employees() {
                       </td>
                       <td className="mono">{e.mobileNo || <span className="table__muted">—</span>}</td>
                       <td>{isoToDisplay(e.joiningDate)}</td>
+                      <td>
+                        {e.salaryConfig?.baseRate !== null && e.salaryConfig?.baseRate !== undefined ? (
+                          <div>
+                            <span style={{ fontWeight: 700, color: '#166534' }}>
+                              ₹{Number(e.salaryConfig.baseRate).toLocaleString('en-IN')}
+                            </span>
+                            <span className="text-small text-muted" style={{ marginLeft: 4 }}>
+                              /{e.salaryConfig.salaryType === 'Monthly' ? 'mo' : 'day'}
+                            </span>
+                            {e.salaryConfig.otMultiplier ? (
+                              <div style={{ fontSize: 11, color: '#6B7280' }}>
+                                OT: {e.salaryConfig.otMultiplier}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="table__muted">₹ —</span>
+                        )}
+                      </td>
                       <td>
                         <Badge tone={e.status === 'Active' ? 'green' : 'slate'} dot>
                           {e.status}
@@ -528,6 +563,90 @@ export default function Employees() {
               />
             </Field>
           </div>
+
+          <h3 className="mb-1 mt-2">Compensation &amp; Salary Structure</h3>
+          <div className="grid grid--form">
+            <Field label="Salary Type" required>
+              <Select
+                value={form.salaryType}
+                onChange={(e) => setForm({ ...form, salaryType: e.target.value })}
+              >
+                <option value="Monthly">Monthly Fixed</option>
+                <option value="Daily">Daily Wage</option>
+              </Select>
+            </Field>
+
+            <Field label={form.salaryType === 'Monthly' ? 'Monthly Base Rate (₹)' : 'Daily Base Rate (₹)'} required>
+              <Input
+                type="number"
+                min="0"
+                value={form.baseRate}
+                onChange={(e) => setForm({ ...form, baseRate: e.target.value })}
+                placeholder={form.salaryType === 'Monthly' ? 'e.g. 18000' : 'e.g. 600'}
+                required
+              />
+            </Field>
+
+            <Field label="OT Multiplier">
+              <Select
+                value={form.otMultiplier}
+                onChange={(e) => setForm({ ...form, otMultiplier: e.target.value })}
+              >
+                <option value="1x">1.0x (Standard 1:1)</option>
+                <option value="1.5x">1.5x (Time and a half)</option>
+                <option value="2x">2.0x (Double time)</option>
+              </Select>
+            </Field>
+
+            <Field label="Standard Daily Hours">
+              <Input
+                type="number"
+                min="1"
+                max="24"
+                value={form.standardDailyHours}
+                onChange={(e) => setForm({ ...form, standardDailyHours: e.target.value })}
+              />
+            </Field>
+
+            <Field label="Disbursement Mode">
+              <Select
+                value={form.paymentMode}
+                onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
+              >
+                <option value="Cash">Cash Voucher</option>
+                <option value="Bank">Bank Transfer</option>
+              </Select>
+            </Field>
+
+            <Field label="Paid Leaves / Month">
+              <Input
+                type="number"
+                min="0"
+                value={form.paidLeavesPerMonth}
+                onChange={(e) => setForm({ ...form, paidLeavesPerMonth: e.target.value })}
+              />
+            </Field>
+          </div>
+
+          {/* Live rate preview badge */}
+          {Number(form.baseRate) > 0 && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--navy-050)', border: '1px solid var(--navy-100)', borderRadius: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy-700)' }}>
+                💡 Rate Calculation: Daily Rate = ₹
+                {form.salaryType === 'Monthly'
+                  ? (Number(form.baseRate) / 26).toFixed(2)
+                  : Number(form.baseRate).toFixed(2)}
+                /day • Hourly Rate = ₹
+                {(
+                  (form.salaryType === 'Monthly'
+                    ? Number(form.baseRate) / 26
+                    : Number(form.baseRate)) /
+                  (Number(form.standardDailyHours) || 8)
+                ).toFixed(2)}
+                /hr
+              </span>
+            </div>
+          )}
         </form>
       </Modal>
 

@@ -25,6 +25,8 @@ import AuditLog from './pages/AuditLog';
 import Settings from './pages/Settings';
 import SystemHealth from './pages/SystemHealth';
 import Account from './pages/Account';
+import Payroll from './pages/Payroll';
+import Advances from './pages/Advances';
 
 /** Route guard: authentication plus an optional permission requirement. */
 function Protected({ children, permission, adminOnly }) {
@@ -34,7 +36,9 @@ function Protected({ children, permission, adminOnly }) {
   if (loading) return <Loading text="Checking your session…" />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
 
-  if ((adminOnly && !isAdmin) || (permission && !can(permission))) {
+  const hasPermission = typeof permission === 'function' ? permission(can) : (permission ? can(permission) : true);
+
+  if ((adminOnly && !isAdmin) || !hasPermission) {
     return (
       <Layout>
         <EmptyState
@@ -82,6 +86,15 @@ export default function App() {
       <Route path="/holidays" element={<Protected><Holidays /></Protected>} />
 
       <Route path="/reports" element={<Protected permission="canViewReports"><Reports /></Protected>} />
+
+      <Route
+        path="/payroll"
+        element={<Protected permission={(c) => c('canManagePayroll') || c('canViewSalary')}><Payroll /></Protected>}
+      />
+      <Route
+        path="/advances"
+        element={<Protected permission={(c) => c('canManageAdvances') || c('canViewSalary')}><Advances /></Protected>}
+      />
 
       <Route path="/operators" element={<Protected adminOnly><Operators /></Protected>} />
       <Route path="/audit" element={<Protected adminOnly><AuditLog /></Protected>} />

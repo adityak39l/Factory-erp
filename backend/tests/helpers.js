@@ -91,6 +91,15 @@ async function createEmployee(overrides = {}) {
     joiningMonth: month,
     status: overrides.status || 'Active',
     inactiveSince: overrides.inactiveSince || null,
+    salaryConfig: overrides.salaryConfig || {
+      salaryType: 'Monthly',
+      baseRate: 0,
+      standardDailyHours: 8,
+      otMultiplier: '1x',
+      paymentMode: 'Cash',
+      paidLeavesPerMonth: 0,
+    },
+    salaryHistory: overrides.salaryHistory || [],
   });
 }
 

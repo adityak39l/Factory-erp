@@ -32,6 +32,13 @@ const NAV = [
     ],
   },
   {
+    section: 'Payroll & Compensation',
+    items: [
+      { to: '/payroll', label: 'Monthly Payroll', icon: '💰', permission: (c) => c('canManagePayroll') || c('canViewSalary') },
+      { to: '/advances', label: 'Salary Advances', icon: '💸', permission: (c) => c('canManageAdvances') || c('canViewSalary') },
+    ],
+  },
+  {
     section: 'Configuration',
     items: [
       { to: '/departments', label: 'Departments & Teams', icon: '🏗️' },
@@ -65,6 +72,8 @@ const TITLES = {
   '/dpr/incomplete': 'Incomplete DPR',
   '/employees': 'Employees',
   '/employees/import': 'Bulk Employee Import',
+  '/payroll': 'Monthly Payroll & Salary Register',
+  '/advances': 'Salary Advances & EMIs',
   '/departments': 'Departments & Teams',
   '/shifts': 'Shift Settings',
   '/holidays': 'Holiday Calendar',
@@ -146,6 +155,7 @@ export default function Layout({ children }) {
   const isVisible = useCallback(
     (item) => {
       if (item.adminOnly) return isAdmin;
+      if (typeof item.permission === 'function') return item.permission(can);
       if (item.permission) return can(item.permission);
       return true;
     },
