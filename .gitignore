@@ -9,3 +9,6 @@ coverage/
 npm-debug.log*
 .DS_Store
 uploads/tmp/
+.local_db/
+backend/.local_db/
+
